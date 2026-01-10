@@ -9,7 +9,7 @@ DELAY_SEC = 60
 
 app = Flask(__name__)
 
-# ---------- ROUTES ----------
+
 @app.route("/")
 def home():
     return send_from_directory("frontend", "frontend.html")
@@ -22,7 +22,7 @@ def serve_frontend_files(filename):
 def serve_data(filename):
     return send_from_directory("data", filename)
 
-# ---------- SCRAPER LOOP ----------
+
 def scraper_loop():
     init_csv(CSV_PATH)
     scraper = InfosysScraper()
@@ -38,7 +38,7 @@ def scraper_loop():
 
         time.sleep(DELAY_SEC)
 
-# ---------- START ----------
+
 if __name__ == "__main__":
     t = threading.Thread(target=scraper_loop, daemon=True)
     t.start()
