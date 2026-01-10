@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Infosys Stock Tracker</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: #020617;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+    }
+
+    h1 { text-align:center; color:#38bdf8; margin-bottom:5px; }
+    .subtitle { text-align:center; color:#94a3b8; margin-bottom:15px; }
+
+    .top-bar {
+      display:flex;
+      justify-content:flex-end;
+      margin-bottom:10px;
+    }
+
+    select {
+      background:#020617;
+      color:#38bdf8;
+      border:1px solid #1e293b;
+      padding:5px 10px;
+      border-radius:6px;
+    }
+
+    .content {
+      display:flex;
+      gap:20px;
+    }
+
+    .table-box, .chart-box {
+      flex:1;
+      border:1px solid #1e293b;
+      border-radius:10px;
+      padding:10px;
+    }
+
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th,td { border:1px solid #1e293b; padding:6px; text-align:center; }
+    th { color:#38bdf8; text-transform:uppercase; font-size:12px; }
+
+    footer { text-align:center; margin-top:20px; color:#64748b; }
+
+    @media(max-width:900px){ .content{flex-direction:column;} }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Infosys Stock Tracker</h1>
+  <div class="subtitle">Last 7 Days Price Movement</div>
+
+  <div class="top-bar">
+    <select id="intervalSelect">
+      <option value="1m">1 min</option>
+      <option value="5m">5 min</option>
+      <option value="1h" selected>1 hr</option>
+      <option value="1d">1 day</option>
+    </select>
+  </div>
+
+  <div class="content">
+    <div class="table-box">
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="chart-box">
+      <canvas id="priceChart"></canvas>
+    </div>
+  </div>
+
+  <footer>Made by Pranav</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let chart;
+
+function groupData(raw, mode) {
+  const rows = raw.trim().split("\n").slice(1);
+  const data = rows.map(r => {
+    const p = r.split(",");
+    return [p[0], p.slice(2).join(",")];
+  });
+
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const filtered = data.filter(r => new Date(r[0]) >= oneWeekAgo);
+
+  const result = [];
+  let lastKey = null;
+
+  filtered.forEach(r => {
+    const dt = new Date(r[0]);
+    let key;
+
+    if (mode === "1m") key = dt.getFullYear()+dt.getMonth()+dt.getDate()+dt.getHours()+dt.getMinutes();
+    if (mode === "5m") key = dt.getFullYear()+dt.getMonth()+dt.getDate()+dt.getHours()+Math.floor(dt.getMinutes()/5);
+    if (mode === "1h") key = dt.getFullYear()+dt.getMonth()+dt.getDate()+dt.getHours();
+    if (mode === "1d") key = dt.getFullYear()+dt.getMonth()+dt.getDate();
+
+    if (key !== lastKey) {
+      result.push(r);
+      lastKey = key;
+    }
+  });
+
+  return result;
+}
+
+function render(raw) {
+  const mode = document.getElementById("intervalSelect").value;
+  const rows = groupData(raw, mode);
+
+  const tbody = document.querySelector("#stockTable tbody");
+  tbody.innerHTML = "";
+
+  const labels = [];
+  const prices = [];
+
+  rows.forEach(r => {
+    const dt = new Date(r[0]);
+    const date = dt.toLocaleDateString(undefined,{day:"2-digit",month:"short"});
+    const time = dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const label = mode==="1d" ? date : date+" "+time;
+    const price = r[1];
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${label}</td><td>₹ ${price}</td>`;
+    tbody.appendChild(tr);
+
+    labels.push(label);
+    prices.push(parseFloat(price));
+  });
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("priceChart"), {
+    type:"line",
+    data:{
+      labels,
+      datasets:[{
+        label:"Infosys Price",
+        data:prices,
+        borderColor:"#38bdf8",
+        backgroundColor:"rgba(56,189,248,0.1)",
+        fill:true,
+        tension:0.4,
+        pointRadius:3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ legend:{labels:{color:"#e5e7eb"}}},
+      scales:{
+        x:{ticks:{color:"#94a3b8"}},
+        y:{ticks:{color:"#94a3b8"}}
+      }
+    }
+  });
+}
+
+function refreshData(){
+  fetch("/data/stock_data.csv?ts="+Date.now())
+    .then(r=>r.text())
+    .then(render);
+}
+
+document.getElementById("intervalSelect").addEventListener("change", refreshData);
+
+// First load
+refreshData();
+
+// Update every second
+setInterval(refreshData, 10000);
+</script>
+
+</body>
+</html>
