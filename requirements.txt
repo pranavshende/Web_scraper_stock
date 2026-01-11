@@ -4,3 +4,6 @@ pandas
 selenium
 playwright
 flask
+python-dotenv
+gspread
+google-auth
